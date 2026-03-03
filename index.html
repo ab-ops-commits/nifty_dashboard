@@ -7,12 +7,12 @@
     <style>
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: #0f172a; color: #f8fafc; overflow: hidden; }
-        .ticker-list { width: 400px; background-color: #1e293b; padding: 0; overflow-y: auto; border-right: 1px solid #334155; flex-shrink: 0; }
+        .ticker-list { width: 480px; background-color: #1e293b; padding: 0; overflow-y: auto; border-right: 1px solid #334155; flex-shrink: 0; }
         .chart-container { flex: 1; display: flex; flex-direction: column; background-color: #020617; }
         .group-header { background-color: #334155; padding: 10px 15px; font-weight: 700; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.05em; color: #cbd5e1; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #475569; }
-        .ticker-table { width: 100%; border-collapse: collapse; font-size: 0.85em; table-layout: fixed; }
-        .ticker-table th { text-align: left; padding: 10px 15px; background-color: #1e293b; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155; }
-        .ticker-table td { padding: 12px 15px; border-bottom: 1px solid #334155; cursor: pointer; }
+        .ticker-table { width: 100%; border-collapse: collapse; font-size: 0.8em; table-layout: fixed; }
+        .ticker-table th { text-align: left; padding: 8px 10px; background-color: #1e293b; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155; }
+        .ticker-table td { padding: 10px 10px; border-bottom: 1px solid #334155; cursor: pointer; }
         .ticker-row:hover { background-color: #334155; }
         .ticker-row.active { background-color: #3b82f633; border-left: 3px solid #3b82f6; }
         .abc-rating { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; color: white; font-size: 0.75em; }
@@ -20,6 +20,7 @@
         .price-up { color: #10b981; font-weight: 600; }
         .price-down { color: #ef4444; font-weight: 600; }
         #tradingview-chart { flex: 1; }
+        .meta-bar { padding: 6px 15px; font-size: 0.75em; color: #64748b; background-color: #0f172a; border-bottom: 1px solid #1e293b; }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
@@ -27,29 +28,33 @@
     </style>
 </head>
 <body>
-    <div class="ticker-list" id="groups-container">
-        <div style="padding:40px; text-align:center; color:#94a3b8;">
-            <div style="margin-bottom:10px;">Loading Market Data...</div>
-            <div style="font-size:0.8em;">(This may take a moment)</div>
+    <div class="ticker-list">
+        <div id="meta-bar" class="meta-bar">Loading...</div>
+        <div id="groups-container">
+            <div style="padding:40px; text-align:center; color:#94a3b8;">
+                <div style="margin-bottom:10px;">Loading Market Data...</div>
+                <div style="font-size:0.8em;">(This may take a moment)</div>
+            </div>
         </div>
     </div>
     <div class="chart-container">
         <div id="tradingview-chart"></div>
     </div>
-
     <script src="https://s3.tradingview.com/tv.js"></script>
     <script>
     (function() {
-        let chart = null;
         let snapshot = null;
-
         const tvMapping = {
             'NSEI': 'NIFTY',
             'NSEBANK': 'BANKNIFTY',
+            'NIFTYNXT50': 'NIFTYNXT50',
             'CNX100': 'NIFTY100',
             'CNX200': 'NIFTY200',
+            'CNX500': 'NIFTY500',
+            'NSMIDCP100': 'NIFTYMIDCAP100',
             'NSEMDCP50': 'NIFTY_MID_50',
             'CNXAUTO': 'NIFTY_AUTO',
+            'CNXFIN': 'FINNIFTY',
             'CNXFMCG': 'NIFTY_FMCG',
             'CNXIT': 'NIFTY_IT',
             'CNXMETAL': 'NIFTY_METAL',
@@ -57,48 +62,62 @@
             'CNXREALTY': 'NIFTY_REALTY',
             'CNXENERGY': 'NIFTY_ENERGY',
             'CNXINFRA': 'NIFTY_INFRA',
+            'CNXMEDIA': 'NIFTY_MEDIA',
             'CNXPSUBANK': 'NIFTY_PSU_BANK',
             'CNXSERVICE': 'NIFTY_SERV_SECTOR',
-            'CNXCOMMODITIES': 'NIFTY_COMMODITIES',
-            'CNXCONSUMPTION': 'NIFTY_CONSUMPTION',
-            'CNXFINANCE': 'FINNIFTY'
+            'CNXPVTBANK': 'NIFTY_PVTBANK',
+            'CNXCONSDUR': 'NIFTY_CONSR_DURBL',
+            'CNXHEALTH': 'NIFTY_HEALTHCARE'
         };
+
+        function spark(data, w, h) {
+            if (!data || data.length < 2) return '';
+            const min = Math.min(...data), max = Math.max(...data);
+            const range = max - min || 1;
+            const pts = data.map((v, i) => {
+                const x = (i / (data.length - 1)) * w;
+                const y = h - ((v - min) / range) * h;
+                return x + ',' + y;
+            }).join(' ');
+            const last = data[data.length - 1];
+            const first = data[0];
+            const col = last >= first ? '#10b981' : '#ef4444';
+            return `<svg width="${w}" height="${h}" style="display:block"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5"/></svg>`;
+        }
 
         function renderGroups() {
             if (!snapshot || !snapshot.groups) return;
             let html = '';
             const order = ['Broad Indices', 'Sectoral Indices'];
-            
             order.forEach(gn => {
                 const rows = snapshot.groups[gn];
                 if (!rows || rows.length === 0) return;
-                
                 html += `<div class="group-header">${gn}</div>
                 <table class="ticker-table">
-                    <thead>
-                        <tr>
-                            <th style="width:50%">Symbol</th>
-                            <th style="width:20%; text-align:center;">Grade</th>
-                            <th style="width:30%; text-align:right;">Daily %</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-                
+                <thead><tr>
+                    <th style="width:30%">Symbol</th>
+                    <th style="width:12%; text-align:center;">Grade</th>
+                    <th style="width:18%; text-align:right;">Day%</th>
+                    <th style="width:18%; text-align:right;">5D%</th>
+                    <th style="width:22%; text-align:right;">RS</th>
+                </tr></thead><tbody>`;
                 rows.forEach(r => {
                     const daily = parseFloat(r.daily) || 0;
-                    const cl = daily > 0 ? 'price-up' : (daily < 0 ? 'price-down' : '');
+                    const d5 = parseFloat(r['5d']) || 0;
+                    const dcl = daily > 0 ? 'price-up' : (daily < 0 ? 'price-down' : '');
+                    const d5cl = d5 > 0 ? 'price-up' : (d5 < 0 ? 'price-down' : '');
+                    const rs = spark(r.rs_history, 60, 20);
                     html += `<tr class="ticker-row" onclick="window.up('${r.ticker}')" id="r-${r.ticker}">
-                        <td><div style="font-weight:600;">${r.ticker}</div></td>
-                        <td style="text-align:center;"><span class="abc-rating abc-${(r.abc || 'C').toLowerCase()}">${r.abc || 'C'}</span></td>
-                        <td class="${cl}" style="text-align:right;">${daily > 0 ? '+' : ''}${daily}%</td>
+                        <td><div style="font-weight:600;font-size:0.9em">${r.ticker}</div></td>
+                        <td style="text-align:center;"><span class="abc-rating abc-${(r.abc||'C').toLowerCase()}">${r.abc||'C'}</span></td>
+                        <td class="${dcl}" style="text-align:right;">${daily>0?'+':''}${daily}%</td>
+                        <td class="${d5cl}" style="text-align:right;">${d5>0?'+':''}${d5}%</td>
+                        <td style="text-align:right;padding-right:12px;">${rs}</td>
                     </tr>`;
                 });
                 html += '</tbody></table>';
             });
-            
             document.getElementById('groups-container').innerHTML = html;
-            
-            // Auto-select first ticker
             for (let gn of order) {
                 if (snapshot.groups[gn] && snapshot.groups[gn].length > 0) {
                     window.up(snapshot.groups[gn][0].ticker);
@@ -111,38 +130,37 @@
             document.querySelectorAll('.ticker-row').forEach(r => r.classList.remove('active'));
             const row = document.getElementById('r-'+s);
             if (row) row.classList.add('active');
-            
             document.getElementById('tradingview-chart').innerHTML = '';
-            
-            const cleanSymbol = s.replace('^', '').replace('.NS', '');
-            const tvSymbol = tvMapping[cleanSymbol] || cleanSymbol;
-            
+            const tvSym = tvMapping[s] || s;
             new TradingView.widget({
                 "autosize": true,
-                "symbol": "NSE:" + tvSymbol,
+                "symbol": "NSE:" + tvSym,
                 "interval": "D",
                 "timezone": "Asia/Kolkata",
                 "theme": "dark",
                 "style": "1",
                 "locale": "en",
-                "toolbar_bg": "#f1f3f6",
+                "toolbar_bg": "#1e293b",
                 "enable_publishing": false,
                 "allow_symbol_change": true,
                 "container_id": "tradingview-chart"
             });
         };
 
-        fetch('data/snapshot.json')
-            .then(r => r.json())
-            .then(data => {
-                snapshot = data;
-                renderGroups();
-            })
-            .catch(err => {
-                console.error(err);
-                document.getElementById('groups-container').innerHTML = 
-                    `<div style="padding:40px; color:#ef4444;">Error loading data. Check console or run workflow.</div>`;
-            });
+        Promise.all([
+            fetch('data/snapshot.json').then(r => r.json()),
+            fetch('data/meta.json').then(r => r.json()).catch(() => ({}))
+        ]).then(([snap, meta]) => {
+            snapshot = snap;
+            if (meta && meta.last_updated) {
+                document.getElementById('meta-bar').textContent = 'Last updated: ' + meta.last_updated;
+            }
+            renderGroups();
+        }).catch(err => {
+            console.error(err);
+            document.getElementById('groups-container').innerHTML =
+                '<div style="padding:40px; color:#ef4444;">Error loading data. Run workflow to generate data.</div>';
+        });
     })();
     </script>
 </body>
