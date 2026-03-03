@@ -34,42 +34,43 @@ def get_data(tickers):
     data = yf.download(tickers, period="2y", interval="1d", group_by='ticker')
     return data
 
-def build_snapshot(data, tickers):
-    snapshot = []
-    for ticker in tickers:
-        try:
-            if ticker in data and not data[ticker].empty:
-                df = data[ticker].dropna()
-            else:
-                continue
+def build_snapshot(data, tickers_groups):
+    result = {"groups": {}}
+    for group_name, tickers in tickers_groups.items():
+        group_data = []
+        for ticker in tickers:
+            try:
+                if ticker in data and not data[ticker].empty:
+                    df = data[ticker].dropna()
+                else:
+                    continue
+                    
+                if len(df) < 21: continue
                 
-            if len(df) < 2: continue
-            
-            close = df['Close']
-            last_close = close.iloc[-1]
-            prev_close = close.iloc[-2]
-            
-            pct_change = (last_close - prev_close) / prev_close * 100
-            
-            ret_1w = (last_close / close.iloc[-5] - 1) * 100 if len(close) >= 5 else 0
-            ret_1m = (last_close / close.iloc[-21] - 1) * 100 if len(close) >= 21 else 0
-            ret_3m = (last_close / close.iloc[-63] - 1) * 100 if len(close) >= 63 else 0
-            ret_1y = (last_close / close.iloc[-252] - 1) * 100 if len(close) >= 252 else 0
-            
-            snapshot.append({
-                "ticker": ticker,
-                "name": ticker.replace("^", "").replace(".NS", ""),
-                "last": round(float(last_close), 2),
-                "change": round(float(pct_change), 2),
-                "ret_1w": round(float(ret_1w), 2),
-                "ret_1m": round(float(ret_1m), 2),
-                "ret_3m": round(float(ret_3m), 2),
-                "ret_1y": round(float(ret_1y), 2),
-                "color": Industries_COLORS.get(ticker, "#9e9e9e")
-            })
-        except Exception as e:
-            print(f"Error processing {ticker}: {e}")
-    return snapshot
+                close = df['Close']
+                last_close = close.iloc[-1]
+                prev_close = close.iloc[-2]
+                
+                daily_pct = (last_close - prev_close) / prev_close * 100
+                ret_5d = (last_close / close.iloc[-6] - 1) * 100
+                ret_20d = (last_close / close.iloc[-21] - 1) * 100
+                
+                # Dummy Grade
+                grade = 'A' if ret_20d > 5 else ('B' if ret_20d > 0 else 'C')
+                
+                group_data.append({
+                    "ticker": ticker.replace("^", "").replace(".NS", ""),
+                    "abc": grade,
+                    "daily": round(float(daily_pct), 2),
+                    "5d": round(float(ret_5d), 2),
+                    "20d": round(float(ret_20d), 2),
+                    "atr_pct": 0,
+                    "rs_chart": ""
+                })
+            except Exception as e:
+                print(f"Error processing {ticker}: {e}")
+        result["groups"][group_name] = group_data
+    return result
 
 def main():
     parser = argparse.ArgumentParser()
@@ -80,20 +81,18 @@ def main():
         os.makedirs(args.out_dir)
         
     all_tickers = []
-    for group in STOCK_GROUPS.values():
-        all_tickers.extend(group)
+    for tickers in STOCK_GROUPS.values():
+        all_tickers.extend(tickers)
     all_tickers = list(set(all_tickers))
     
     print(f"Fetching data for {len(all_tickers)} tickers...")
     data = get_data(all_tickers)
+   
+    snapshot = build_snapshot(data, STOCK_GROUPS)
     
-    snapshot = build_snapshot(data, all_tickers)
-    
-    # Save snapshot
     with open(os.path.join(args.out_dir, "snapshot.json"), "w") as f:
         json.dump(snapshot, f)
         
-    # Create dummy events and meta to satisfy dashboard
     with open(os.path.join(args.out_dir, "events.json"), "w") as f:
         json.dump([], f)
         
