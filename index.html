@@ -6,28 +6,32 @@
     <title>Nifty Dashboard</title>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: #1a1a1a; color: #e0e0e0; }
-        .ticker-list { width: 350px; background-color: #1a1a1a; padding: 0; overflow-y: auto; border-right: 1px solid #333; flex-shrink: 0; }
-        .chart-container { flex: 1; display: flex; flex-direction: column; padding: 0; background-color: #1a1a1a; }
-        .group-header { background-color: #2d3748; padding: 8px 12px; font-weight: bold; font-size: 0.9em; position: sticky; top: 0; z-index: 3; cursor: pointer; border-bottom: 1px solid #444; }
-        .ticker-table { width: 100%; border-collapse: collapse; font-size: 0.8em; table-layout: fixed; }
-        .ticker-table th { text-align: left; padding: 8px; background-color: #1a1a1a; cursor: pointer; font-weight: bold; border-bottom: 1px solid #333; color: #888; }
-        .ticker-table td { padding: 8px; border-bottom: 1px solid #222; color: #e0e0e0; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .ticker-row:hover { background-color: #2a2a2a; }
-        .ticker-row.active { background-color: #374151; }
-        .abc-rating { display: inline-block; width: 18px; height: 18px; border-radius: 50%; text-align: center; line-height: 18px; font-weight: bold; color: white; font-size: 0.75em; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: #0f172a; color: #f8fafc; overflow: hidden; }
+        .ticker-list { width: 400px; background-color: #1e293b; padding: 0; overflow-y: auto; border-right: 1px solid #334155; flex-shrink: 0; }
+        .chart-container { flex: 1; display: flex; flex-direction: column; background-color: #020617; }
+        .group-header { background-color: #334155; padding: 10px 15px; font-weight: 700; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.05em; color: #cbd5e1; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #475569; }
+        .ticker-table { width: 100%; border-collapse: collapse; font-size: 0.85em; table-layout: fixed; }
+        .ticker-table th { text-align: left; padding: 10px 15px; background-color: #1e293b; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155; }
+        .ticker-table td { padding: 12px 15px; border-bottom: 1px solid #334155; cursor: pointer; }
+        .ticker-row:hover { background-color: #334155; }
+        .ticker-row.active { background-color: #3b82f633; border-left: 3px solid #3b82f6; }
+        .abc-rating { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; color: white; font-size: 0.75em; }
         .abc-a { background-color: #3b82f6; } .abc-b { background-color: #10b981; } .abc-c { background-color: #f59e0b; }
-        .price-up { color: #10b981 !important; }
-        .price-down { color: #ef4444 !important; }
-        .rs-chart { width: 60px; height: 20px; display: block; filter: invert(1); }
+        .price-up { color: #10b981; font-weight: 600; }
+        .price-down { color: #ef4444; font-weight: 600; }
         #tradingview-chart { flex: 1; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #444; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
     </style>
 </head>
 <body>
     <div class="ticker-list" id="groups-container">
-        <div style="padding:20px">Loading Nifty Data...</div>
+        <div style="padding:40px; text-align:center; color:#94a3b8;">
+            <div style="margin-bottom:10px;">Loading Market Data...</div>
+            <div style="font-size:0.8em;">(This may take a moment)</div>
+        </div>
     </div>
     <div class="chart-container">
         <div id="tradingview-chart"></div>
@@ -38,15 +42,34 @@
     (function() {
         let chart = null;
         let snapshot = null;
-        let meta = null;
+
+        const tvMapping = {
+            'NSEI': 'NIFTY',
+            'NSEBANK': 'BANKNIFTY',
+            'CNX100': 'NIFTY100',
+            'CNX200': 'NIFTY200',
+            'NSEMDCP50': 'NIFTY_MID_50',
+            'CNXAUTO': 'NIFTY_AUTO',
+            'CNXFMCG': 'NIFTY_FMCG',
+            'CNXIT': 'NIFTY_IT',
+            'CNXMETAL': 'NIFTY_METAL',
+            'CNXPHARMA': 'NIFTY_PHARMA',
+            'CNXREALTY': 'NIFTY_REALTY',
+            'CNXENERGY': 'NIFTY_ENERGY',
+            'CNXINFRA': 'NIFTY_INFRA',
+            'CNXPSUBANK': 'NIFTY_PSU_BANK',
+            'CNXSERVICE': 'NIFTY_SERV_SECTOR',
+            'CNXCOMMODITIES': 'NIFTY_COMMODITIES',
+            'CNXCONSUMPTION': 'NIFTY_CONSUMPTION',
+            'CNXFINANCE': 'FINNIFTY'
+        };
 
         function renderGroups() {
             if (!snapshot || !snapshot.groups) return;
             let html = '';
-            // Use specific order if preferred, otherwise all keys
-            const groupNames = ['Broad Indices', 'Sectoral Indices'];
+            const order = ['Broad Indices', 'Sectoral Indices'];
             
-            groupNames.forEach(gn => {
+            order.forEach(gn => {
                 const rows = snapshot.groups[gn];
                 if (!rows || rows.length === 0) return;
                 
@@ -54,10 +77,9 @@
                 <table class="ticker-table">
                     <thead>
                         <tr>
-                            <th style="width:35%">Ticker</th>
-                            <th style="width:15%">Gr</th>
-                            <th style="width:25%">Daily</th>
-                            <th style="width:25%">VARS</th>
+                            <th style="width:50%">Symbol</th>
+                            <th style="width:20%; text-align:center;">Grade</th>
+                            <th style="width:30%; text-align:right;">Daily %</th>
                         </tr>
                     </thead>
                     <tbody>`;
@@ -66,10 +88,9 @@
                     const daily = parseFloat(r.daily) || 0;
                     const cl = daily > 0 ? 'price-up' : (daily < 0 ? 'price-down' : '');
                     html += `<tr class="ticker-row" onclick="window.up('${r.ticker}')" id="r-${r.ticker}">
-                        <td>${r.ticker}</td>
-                        <td><span class="abc-rating abc-${(r.abc || 'C').toLowerCase()}">${r.abc || 'C'}</span></td>
-                        <td class="${cl}">${daily}%</td>
-                        <td><img src="${r.rs_chart}" class="rs-chart" onerror="this.style.display='none'"></td>
+                        <td><div style="font-weight:600;">${r.ticker}</div></td>
+                        <td style="text-align:center;"><span class="abc-rating abc-${(r.abc || 'C').toLowerCase()}">${r.abc || 'C'}</span></td>
+                        <td class="${cl}" style="text-align:right;">${daily > 0 ? '+' : ''}${daily}%</td>
                     </tr>`;
                 });
                 html += '</tbody></table>';
@@ -78,7 +99,7 @@
             document.getElementById('groups-container').innerHTML = html;
             
             // Auto-select first ticker
-            for (let gn of groupNames) {
+            for (let gn of order) {
                 if (snapshot.groups[gn] && snapshot.groups[gn].length > 0) {
                     window.up(snapshot.groups[gn][0].ticker);
                     break;
@@ -91,15 +112,14 @@
             const row = document.getElementById('r-'+s);
             if (row) row.classList.add('active');
             
-            if (chart) {
-                try { document.getElementById('tradingview-chart').innerHTML = ''; } catch(e) {}
-            }
+            document.getElementById('tradingview-chart').innerHTML = '';
             
             const cleanSymbol = s.replace('^', '').replace('.NS', '');
+            const tvSymbol = tvMapping[cleanSymbol] || cleanSymbol;
             
-            chart = new TradingView.widget({
+            new TradingView.widget({
                 "autosize": true,
-                "symbol": "NSE:" + cleanSymbol,
+                "symbol": "NSE:" + tvSymbol,
                 "interval": "D",
                 "timezone": "Asia/Kolkata",
                 "theme": "dark",
@@ -107,24 +127,22 @@
                 "locale": "en",
                 "toolbar_bg": "#f1f3f6",
                 "enable_publishing": false,
-                "hide_side_toolbar": false,
                 "allow_symbol_change": true,
                 "container_id": "tradingview-chart"
             });
         };
 
-        Promise.all([
-            fetch('data/snapshot.json').then(r => r.json()),
-            fetch('data/meta.json').then(r => r.json())
-        ]).then(res => {
-            snapshot = res[0];
-            meta = res[1];
-            renderGroups();
-        }).catch(err => {
-            console.error(err);
-            document.getElementById('groups-container').innerHTML = 
-                `<div style="padding:20px">Error loading data. Check console.</div>`;
-        });
+        fetch('data/snapshot.json')
+            .then(r => r.json())
+            .then(data => {
+                snapshot = data;
+                renderGroups();
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('groups-container').innerHTML = 
+                    `<div style="padding:40px; color:#ef4444;">Error loading data. Check console or run workflow.</div>`;
+            });
     })();
     </script>
 </body>
