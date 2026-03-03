@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nifty Dashboard</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: #1a1a1a; color: #e0e0e0; }
+        .ticker-list { width: 800px; background-color: #1a1a1a; padding: 0; overflow-y: auto; border-right: 1px solid #333; }
+        .chart-container { flex: 1; display: flex; flex-direction: column; padding: 10px; background-color: #1a1a1a; }
+        .group-header { background-color: #2d3748; padding: 6px 8px; font-weight: bold; font-size: 0.9em; position: sticky; top: 0; z-index: 3; cursor: pointer; border-bottom: 1px solid #444; }
+        .ticker-table { width: 100%; border-collapse: collapse; font-size: 0.85em; table-layout: fixed; }
+        .ticker-table th { text-align: left; padding: 6px 8px; background-color: #2d3748; cursor: pointer; font-weight: bold; border-bottom: 1px solid #444; }
+        .ticker-table td { padding: 6px 8px; border-bottom: 1px solid #333; color: #e0e0e0; cursor: pointer; }
+        .ticker-row:hover { background-color: #2a2a2a; }
+        .ticker-row.active { background-color: #374151; }
+        .abc-rating { display: inline-block; width: 20px; height: 20px; border-radius: 50%; text-align: center; line-height: 20px; font-weight: bold; color: white; }
+        .abc-a { background-color: #3b82f6; } .abc-b { background-color: #10b981; } .abc-c { background-color: #f59e0b; }
+        .price-up { color: #10b981 !important; font-weight: bold; }
+        .price-down { color: #ef4444 !important; font-weight: bold; }
+        .rs-chart { width: 100%; max-width: 100px; height: 30px; display: block; object-fit: contain; }
+        #tradingview-chart { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="ticker-list" id="groups-container"><div style="padding:20px">Loading Nifty Data...</div></div>
+    <div class="chart-container"><div id="tradingview-chart"></div></div>
+    <script src="https://s3.tradingview.com/tv.js"></script>
+    <script>
+        (function() {
+            let chart = null; let snapshot = null; let meta = null;
+            function renderGroups() {
+                let html = '';
+                ['Broad Indices', 'Sectoral Indices'].forEach(gn => {
+                    const rows = snapshot.groups[gn]; if (!rows) return;
+                    html += `<div class="group-header">${gn}</div><table class="ticker-table"><thead><tr><th>Ticker</th><th>Grade</th><th>Daily</th><th>5D</th><th>20D</th><th>ATR%</th><th>VARS</th></tr></thead><tbody>`;
+                    rows.forEach(r => {
+                        const cl = r.daily > 0 ? 'price-up' : 'price-down';
+                        html += `<tr class="ticker-row" onclick="window.up('${r.ticker}')" id="r-${r.ticker}">
+                            <td>${r.ticker}</td>
+                            <td><span class="abc-rating abc-${r.abc.toLowerCase()}">${r.abc}</span></td>
+                            <td class="${cl}">${r.daily}%</td>
+                            <td>${r.5d}%</td><td>${r.20d}%</td><td>${r.atr_pct}%</td>
+                            <td><img src="${r.rs_chart}" class="rs-chart"></td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                });
+                document.getElementById('groups-container').innerHTML = html;
+                window.up(snapshot.groups['Broad Indices'][0].ticker);
+            }
+            window.up = function(s) {
+                document.querySelectorAll('.ticker-row').forEach(r => r.classList.remove('active'));
+                const row = document.getElementById('r-'+s); if (row) row.classList.add('active');
+                if (chart) chart.remove();
+                chart = new TradingView.widget({container_id:"tradingview-chart", symbol:"NSE:"+s.replace('^','').replace('.NS',''), interval:"D", theme:"dark", autosize:true});
+            };
+            Promise.all([fetch('data/snapshot.json').then(r=>r.json()), fetch('data/meta.json').then(r=>r.json())]).then(res => {
+                snapshot = res[0]; meta = res[1]; renderGroups();
+            }).catch(() => {
+                document.getElementById('groups-container').innerHTML = '<div style="padding:20px">Data missing. Run Actions workflow first.</div>';
+            });
+        })();
+    </script>
+</body>
+</html>
