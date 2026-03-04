@@ -1,165 +1,160 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang='en'>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Nifty Dashboard</title>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: #0f172a; color: #f8fafc; overflow: hidden; }
-        .ticker-list { width: 480px; background-color: #1e293b; padding: 0; overflow-y: auto; border-right: 1px solid #334155; flex-shrink: 0; }
-        .chart-container { flex: 1; display: flex; flex-direction: column; background-color: #020617; }
-        .group-header { background-color: #334155; padding: 10px 15px; font-weight: 700; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.05em; color: #cbd5e1; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #475569; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background: #0f172a; color: #f8fafc; overflow: hidden; }
+        .ticker-list { width: 480px; background: #1e293b; padding: 0; overflow-y: auto; border-right: 1px solid #334155; flex-shrink: 0; }
+        .chart-panel { flex: 1; display: flex; flex-direction: column; background: #020617; overflow: hidden; }
+        .chart-header { background: #1e293b; border-bottom: 1px solid #334155; padding: 16px 24px; flex-shrink: 0; }
+        .chart-header h2 { margin: 0 0 8px 0; font-size: 1.4em; color: #f1f5f9; }
+        .stats-row { display: flex; gap: 20px; flex-wrap: wrap; }
+        .stat { display: flex; flex-direction: column; }
+        .stat-label { font-size: 0.7em; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+        .stat-val { font-size: 0.95em; font-weight: 700; }
+        .chart-img-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; overflow: hidden; }
+        .chart-img-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; border: 1px solid #1e293b; }
+        .chart-placeholder { color: #334155; font-size: 1.1em; text-align: center; }
+        .group-header { background: #334155; padding: 10px 15px; font-weight: 700; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.05em; color: #cbd5e1; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #475569; }
+        .meta-bar { padding: 6px 15px; font-size: 0.72em; color: #475569; background: #0f172a; border-bottom: 1px solid #1e293b; }
         .ticker-table { width: 100%; border-collapse: collapse; font-size: 0.8em; table-layout: fixed; }
-        .ticker-table th { text-align: left; padding: 8px 10px; background-color: #1e293b; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155; }
-        .ticker-table td { padding: 10px 10px; border-bottom: 1px solid #334155; cursor: pointer; }
-        .ticker-row:hover { background-color: #334155; }
-        .ticker-row.active { background-color: #3b82f633; border-left: 3px solid #3b82f6; }
+        .ticker-table th { text-align: left; padding: 8px 10px; background: #1e293b; color: #64748b; font-weight: 600; border-bottom: 1px solid #334155; font-size: 0.85em; }
+        .ticker-table td { padding: 10px 10px; border-bottom: 1px solid #1e293b; cursor: pointer; }
+        .ticker-row:hover { background: #334155; }
+        .ticker-row.active { background: #1d4ed820; border-left: 3px solid #3b82f6; }
         .abc-rating { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; color: white; font-size: 0.75em; }
-        .abc-a { background-color: #3b82f6; } .abc-b { background-color: #10b981; } .abc-c { background-color: #f59e0b; }
-        .price-up { color: #10b981; font-weight: 600; }
-        .price-down { color: #ef4444; font-weight: 600; }
-        #tradingview-chart { flex: 1; }
-        .meta-bar { padding: 6px 15px; font-size: 0.75em; color: #64748b; background-color: #0f172a; border-bottom: 1px solid #1e293b; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1e293b; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .abc-a { background: #3b82f6; } .abc-b { background: #10b981; } .abc-c { background: #f59e0b; }
+        .up { color: #10b981; font-weight: 600; } .dn { color: #ef4444; font-weight: 600; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #1e293b; } ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
     </style>
 </head>
 <body>
-    <div class="ticker-list">
-        <div id="meta-bar" class="meta-bar">Loading...</div>
-        <div id="groups-container">
-            <div style="padding:40px; text-align:center; color:#94a3b8;">
-                <div style="margin-bottom:10px;">Loading Market Data...</div>
-                <div style="font-size:0.8em;">(This may take a moment)</div>
-            </div>
+    <div class='ticker-list'>
+        <div id='meta-bar' class='meta-bar'>Loading...</div>
+        <div id='groups-container'>
+            <div style='padding:40px;text-align:center;color:#475569;'>Loading Market Data...</div>
         </div>
     </div>
-    <div class="chart-container">
-        <div id="tradingview-chart"></div>
+    <div class='chart-panel'>
+        <div class='chart-header'>
+            <h2 id='chart-title'>Select an index</h2>
+            <div class='stats-row' id='chart-stats'></div>
+        </div>
+        <div class='chart-img-wrap'>
+            <img id='chart-img' src='' alt='' style='display:none;'>
+            <div id='chart-placeholder' class='chart-placeholder'>Click an index to view its chart</div>
+        </div>
     </div>
-    <script src="https://s3.tradingview.com/tv.js"></script>
     <script>
     (function() {
-        let snapshot = null;
-        const tvMapping = {
-            'NSEI': 'NIFTY',
-            'NSEBANK': 'BANKNIFTY',
-            'NIFTYNXT50': 'NIFTYNXT50',
-            'CNX100': 'NIFTY100',
-            'CNX200': 'NIFTY200',
-            'CNX500': 'NIFTY500',
-            'NSMIDCP100': 'NIFTYMIDCAP100',
-            'NSEMDCP50': 'NIFTY_MID_50',
-            'CNXAUTO': 'NIFTY_AUTO',
-            'CNXFIN': 'FINNIFTY',
-            'CNXFMCG': 'NIFTY_FMCG',
-            'CNXIT': 'NIFTY_IT',
-            'CNXMETAL': 'NIFTY_METAL',
-            'CNXPHARMA': 'NIFTY_PHARMA',
-            'CNXREALTY': 'NIFTY_REALTY',
-            'CNXENERGY': 'NIFTY_ENERGY',
-            'CNXINFRA': 'NIFTY_INFRA',
-            'CNXMEDIA': 'NIFTY_MEDIA',
-            'CNXPSUBANK': 'NIFTY_PSU_BANK',
-            'CNXSERVICE': 'NIFTY_SERV_SECTOR',
-            'CNXPVTBANK': 'NIFTY_PVTBANK',
-            'CNXCONSDUR': 'NIFTY_CONSR_DURBL',
-            'CNXHEALTH': 'NIFTY_HEALTHCARE'
-        };
+        var snapshot = null;
+
+        function fmtPct(v, decimals) {
+            if (v === null || v === undefined || isNaN(v)) return '--';
+            var s = parseFloat(v).toFixed(decimals || 2);
+            return (v > 0 ? '+' : '') + s + '%';
+        }
+
+        function cl(v) { return parseFloat(v) > 0 ? 'up' : (parseFloat(v) < 0 ? 'dn' : ''); }
 
         function spark(data, w, h) {
             if (!data || data.length < 2) return '';
-            const min = Math.min(...data), max = Math.max(...data);
-            const range = max - min || 1;
-            const pts = data.map((v, i) => {
-                const x = (i / (data.length - 1)) * w;
-                const y = h - ((v - min) / range) * h;
+            var min = Math.min.apply(null, data), max = Math.max.apply(null, data);
+            var range = max - min || 1;
+            var pts = data.map(function(v, i) {
+                var x = (i / (data.length - 1)) * w;
+                var y = h - ((v - min) / range) * h;
                 return x + ',' + y;
             }).join(' ');
-            const last = data[data.length - 1];
-            const first = data[0];
-            const col = last >= first ? '#10b981' : '#ef4444';
-            return `<svg width="${w}" height="${h}" style="display:block"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5"/></svg>`;
+            var col = data[data.length-1] >= data[0] ? '#10b981' : '#ef4444';
+            return '<svg width=' + w + ' height=' + h + ' style=display:block><polyline points=' + JSON.stringify(pts) + ' fill=none stroke=' + JSON.stringify(col) + ' stroke-width=1.5/></svg>';
         }
 
         function renderGroups() {
             if (!snapshot || !snapshot.groups) return;
-            let html = '';
-            const order = ['Broad Indices', 'Sectoral Indices'];
-            order.forEach(gn => {
-                const rows = snapshot.groups[gn];
-                if (!rows || rows.length === 0) return;
-                html += `<div class="group-header">${gn}</div>
-                <table class="ticker-table">
-                <thead><tr>
-                    <th style="width:30%">Symbol</th>
-                    <th style="width:12%; text-align:center;">Grade</th>
-                    <th style="width:18%; text-align:right;">Day%</th>
-                    <th style="width:18%; text-align:right;">5D%</th>
-                    <th style="width:22%; text-align:right;">RS</th>
-                </tr></thead><tbody>`;
-                rows.forEach(r => {
-                    const daily = parseFloat(r.daily) || 0;
-                    const d5 = parseFloat(r['5d']) || 0;
-                    const dcl = daily > 0 ? 'price-up' : (daily < 0 ? 'price-down' : '');
-                    const d5cl = d5 > 0 ? 'price-up' : (d5 < 0 ? 'price-down' : '');
-                    const rs = spark(r.rs_history, 60, 20);
-                    html += `<tr class="ticker-row" onclick="window.up('${r.ticker}')" id="r-${r.ticker}">
-                        <td><div style="font-weight:600;font-size:0.9em">${r.ticker}</div></td>
-                        <td style="text-align:center;"><span class="abc-rating abc-${(r.abc||'C').toLowerCase()}">${r.abc||'C'}</span></td>
-                        <td class="${dcl}" style="text-align:right;">${daily>0?'+':''}${daily}%</td>
-                        <td class="${d5cl}" style="text-align:right;">${d5>0?'+':''}${d5}%</td>
-                        <td style="text-align:right;padding-right:12px;">${rs}</td>
-                    </tr>`;
+            var html = '';
+            var order = ['Broad Indices', 'Sectoral Indices'];
+            order.forEach(function(gn) {
+                var rows = snapshot.groups[gn];
+                if (!rows || !rows.length) return;
+                html += '<div class=group-header>' + gn + '</div>';
+                html += '<table class=ticker-table><thead><tr>';
+                html += '<th style=width:30%>Symbol</th><th style=width:12%;text-align:center>Gr</th>';
+                html += '<th style=width:19%;text-align:right>Day%</th>';
+                html += '<th style=width:19%;text-align:right>5D%</th>';
+                html += '<th style=width:20%;text-align:right>RS</th>';
+                html += '</tr></thead><tbody>';
+                rows.forEach(function(r) {
+                    var d = parseFloat(r.daily) || 0;
+                    var d5 = parseFloat(r['5d']) || 0;
+                    html += '<tr class=ticker-row onclick=window.showChart("' + r.ticker + '") id=r-' + r.ticker + '>';
+                    html += '<td><span style=font-weight:600;font-size:.9em>' + r.ticker + '</span></td>';
+                    html += '<td style=text-align:center><span class="abc-rating abc-' + (r.abc||'c').toLowerCase() + '">' + (r.abc||'C') + '</span></td>';
+                    html += '<td class=' + cl(d) + ' style=text-align:right>' + fmtPct(d) + '</td>';
+                    html += '<td class=' + cl(d5) + ' style=text-align:right>' + fmtPct(d5) + '</td>';
+                    html += '<td style=text-align:right;padding-right:10px>' + spark(r.rs_history, 58, 20) + '</td>';
+                    html += '</tr>';
                 });
                 html += '</tbody></table>';
             });
             document.getElementById('groups-container').innerHTML = html;
-            for (let gn of order) {
-                if (snapshot.groups[gn] && snapshot.groups[gn].length > 0) {
-                    window.up(snapshot.groups[gn][0].ticker);
-                    break;
-                }
-            }
+            var first = null;
+            order.forEach(function(gn) {
+                if (!first && snapshot.groups[gn] && snapshot.groups[gn].length) first = snapshot.groups[gn][0].ticker;
+            });
+            if (first) window.showChart(first);
         }
 
-        window.up = function(s) {
-            document.querySelectorAll('.ticker-row').forEach(r => r.classList.remove('active'));
-            const row = document.getElementById('r-'+s);
+        window.showChart = function(ticker) {
+            document.querySelectorAll('.ticker-row').forEach(function(r) { r.classList.remove('active'); });
+            var row = document.getElementById('r-' + ticker);
             if (row) row.classList.add('active');
-            document.getElementById('tradingview-chart').innerHTML = '';
-            const tvSym = tvMapping[s] || s;
-            new TradingView.widget({
-                "autosize": true,
-                "symbol": "NSE:" + tvSym,
-                "interval": "D",
-                "timezone": "Asia/Kolkata",
-                "theme": "dark",
-                "style": "1",
-                "locale": "en",
-                "toolbar_bg": "#1e293b",
-                "enable_publishing": false,
-                "allow_symbol_change": true,
-                "container_id": "tradingview-chart"
+
+            var data = null;
+            var order = ['Broad Indices', 'Sectoral Indices'];
+            order.forEach(function(gn) {
+                if (!data && snapshot.groups[gn]) {
+                    snapshot.groups[gn].forEach(function(r) { if (r.ticker === ticker) data = r; });
+                }
             });
+
+            document.getElementById('chart-title').textContent = ticker;
+            if (data) {
+                var stats = '';
+                var fields = [{k:'daily',l:'Day%'},{k:'5d',l:'5D%'},{k:'20d',l:'20D%'},{k:'atr_pct',l:'ATR%'}];
+                fields.forEach(function(f) {
+                    var v = data[f.k];
+                    stats += '<div class=stat><span class=stat-label>' + f.l + '</span><span class="stat-val ' + cl(v) + '">' + fmtPct(v) + '</span></div>';
+                });
+                document.getElementById('chart-stats').innerHTML = stats;
+            }
+
+            var img = document.getElementById('chart-img');
+            var placeholder = document.getElementById('chart-placeholder');
+            var src = 'data/charts/' + ticker + '.png?t=' + Date.now();
+            img.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.textContent = 'Loading chart...';
+            img.onload = function() { img.style.display = 'block'; placeholder.style.display = 'none'; };
+            img.onerror = function() { placeholder.textContent = 'Chart not available. Run workflow to generate.'; };
+            img.src = src;
         };
 
         Promise.all([
-            fetch('data/snapshot.json').then(r => r.json()),
-            fetch('data/meta.json').then(r => r.json()).catch(() => ({}))
-        ]).then(([snap, meta]) => {
-            snapshot = snap;
+            fetch('data/snapshot.json').then(function(r) { return r.json(); }),
+            fetch('data/meta.json').then(function(r) { return r.json(); }).catch(function() { return {}; })
+        ]).then(function(results) {
+            snapshot = results[0];
+            var meta = results[1];
             if (meta && meta.last_updated) {
                 document.getElementById('meta-bar').textContent = 'Last updated: ' + meta.last_updated;
             }
             renderGroups();
-        }).catch(err => {
-            console.error(err);
-            document.getElementById('groups-container').innerHTML =
-                '<div style="padding:40px; color:#ef4444;">Error loading data. Run workflow to generate data.</div>';
+        }).catch(function(err) {
+            document.getElementById('groups-container').innerHTML = '<div style=padding:40px;color:#ef4444>Error loading data. Please run the workflow.</div>';
         });
     })();
     </script>
